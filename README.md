@@ -36,8 +36,18 @@ https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html
 ###Setup the Hadoop and Spark cluster 
 http://spark.apache.org
   
-###Install TornadoWeb in each computer. 
+###Install TornadoWeb in each computer (Optional if the anaconda python is used). 
 http://www.tornadoweb.org/en/stable/
+
+###Install TensorSpark:
+```
+$ pip install tensorspark
+```
+or download the source at github, compile and install it via:
+```
+$ python setup.py build
+$ python setup.py install
+```
   
 ###Configure the Spark cluster for Tensorspark
 In the Spark configuratino file, conf/spark-defaults.conf, add the following configuration information
