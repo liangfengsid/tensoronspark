@@ -52,9 +52,9 @@ $ python setup.py install
 ###Configure the Spark cluster for Tensorspark
 In the Spark configuratino file, conf/spark-defaults.conf, add the following configuration information
 ```
-The directory in HDFS to store the SparkSession temporary files
+#The directory in HDFS to store the SparkSession temporary files
 spark.hdfs.dir 	/data
-The directory in the local computer to store the SparkSession temporary files
+#The directory in the local computer to store the SparkSession temporary files
 spark.tmp.dir 	/tmp
 ```
 
