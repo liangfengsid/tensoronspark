@@ -41,7 +41,7 @@ http://www.tornadoweb.org/en/stable/
 
 ###Install TensorSpark:
 ```
-$ pip install tensorspark
+$ easy_install tensorspark
 ```
 or download the source at github, compile and install it via:
 ```

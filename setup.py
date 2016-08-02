@@ -22,8 +22,9 @@ setup(
 	license = "Apache",
 	keywords = "",
 	url = "https://github.com/liangfengsid/tensorspark/",
-	packages=['src.core', 'src.example'],
-	package_data={'tensorspark':['src/MNIST_data/*-ubyte']}, 
+	package_dir={'tensorspark':'src'},
+	packages=['tensorspark', 'tensorspark.core', 'tensorspark.example'],
+	package_data={'tensorspark':['MNIST_data/*-ubyte']}, 
 	long_description=read('README.md'),
 	classifiers=[
 		'Development Status :: 4 - Beta',
