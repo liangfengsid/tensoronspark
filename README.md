@@ -72,10 +72,11 @@ hadoop fs -put MNIST_data/* /data
 ```
 
 ###Run the MNIST example
-In the directory of Tensorspark/src, run Spark pyspark via the shell.
+Run Spark pyspark via the shell.
 ```
 pyspark --deploy-mode=client
->>>import example.spark_mnist as mnist
+>>>import tensorspark.example.spark_mnist as mnist
+>>># The 'user' parameter is the user name of HDFS
 >>>mnist.train(sc=sc, user='liangfengsid', name='mnist_try', server_host='localhost', server_port=10080, sync_interval=100, batch_size=100, num_partition=1, num_epoch=2)
 ```
 
