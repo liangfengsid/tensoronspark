@@ -5,8 +5,8 @@ import tensorflow.python.framework.dtypes as dtypes
 import pyspark
 import random
 
-import core.spark_session as sps
-import core.partitioner as par
+import tensorspark.core.spark_session as sps
+import tensorspark.core.partitioner as par
 
 def extract_images(sc, filepath, dtype=dtypes.float32, reshape=True):
 	"""Extract the images into a 4D uint8 numpy array [index, y, x, depth]."""
