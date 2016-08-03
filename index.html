@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Tensorspark : Running Tensorflow on Spark in the scalable, fast and compatible style">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Tensorspark</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/liangfengsid/tensorspark">View on GitHub</a>
+
+          <h1 id="project_title">Tensorspark</h1>
+          <h2 id="project_tagline">Running Tensorflow on Spark in the scalable, fast and compatible style</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/liangfengsid/tensorspark/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/liangfengsid/tensorspark/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="tensorspark" class="anchor" href="#tensorspark" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>tensorspark</h1>
+
+<p>Running Tensorflow on Spark in the scalable, fast and compatible style</p>
+
+<p>Tensorspark facilitates the researchers and programmer to easily write the regular Tensorflow programs and run Tensorflow on the Spark distributed computing paradigm. Tensorspark is innovated by the SparkSession, which  parallelizes the Tensorflow sessions in different executors of Spark. SparkSession maintains a riable central parameter server, which synchronizes the machine learning model parameters periodically with the worker executors. </p>
+
+<h2>
+<a id="programming-example" class="anchor" href="#programming-example" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Programming example</h2>
+
+<p>Tensorspark program is very easy to write if one is already familiar with Tensorflow. An complete example of writing the MNIST program can be checked out in src/example/spark_mnist.py.</p>
+
+<pre><code>#initialize the learning model exactly as Tensorflow
+import tensorflow as tf
+x = tf.placeholder(tf.float32, [None, 784])
+W = tf.Variable(tf.zeros([784, 10]))
+b = tf.Variable(tf.zeros([10]))
+y = tf.nn.softmax(tf.matmul(x, W) + b)
+y_ = tf.placeholder(tf.float32, [None, 10])
+cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y), reduction_indices=[1]))
+train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
+init = tf.initialize_all_variables()
+sess = tf.Session()
+sess.run(init)
+
+#Extra information to notify the SparkSession about the input/output tensor and the variables.
+feed_name_list = [x.name, y_.name]
+param_list = [W, b]
+
+#Initialize the SparkSession and run it with the Spark RDD data. 
+spark_sess = sps.SparkSession(sc, sess, user='liangfengsid', name='spark_mnist', server_host='localhost', server_port=10080, sync_interval=100, batch_size=100)
+spark_sess.run(train_step, feed_rdd=image_label_rdd, feed_name_list=feed_name_list, param_list=param_list, shuffle_within_partition=True)
+</code></pre>
+
+<h2>
+<a id="brief-installation-instruction-linux-or-mac-os" class="anchor" href="#brief-installation-instruction-linux-or-mac-os" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Brief Installation Instruction (Linux or Mac OS):</h2>
+
+<h3>
+<a id="install-tensorflow-in-each-computer" class="anchor" href="#install-tensorflow-in-each-computer" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Install Tensorflow in each computer</h3>
+
+<p><a href="https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html">https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html</a></p>
+
+<h3>
+<a id="setup-the-hadoop-and-spark-cluster" class="anchor" href="#setup-the-hadoop-and-spark-cluster" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Setup the Hadoop and Spark cluster</h3>
+
+<p><a href="http://spark.apache.org">http://spark.apache.org</a></p>
+
+<h3>
+<a id="install-tornadoweb-in-each-computer-optional-if-the-anaconda-python-is-used" class="anchor" href="#install-tornadoweb-in-each-computer-optional-if-the-anaconda-python-is-used" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Install TornadoWeb in each computer (Optional if the anaconda python is used).</h3>
+
+<p><a href="http://www.tornadoweb.org/en/stable/">http://www.tornadoweb.org/en/stable/</a></p>
+
+<h3>
+<a id="install-tensorspark" class="anchor" href="#install-tensorspark" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Install TensorSpark:</h3>
+
+<pre><code>$ easy_install tensorspark
+</code></pre>
+
+<p>or download the source at github, compile and install it via:</p>
+
+<pre><code>$ python setup.py build
+$ python setup.py install
+</code></pre>
+
+<h3>
+<a id="configure-the-spark-cluster-for-tensorspark" class="anchor" href="#configure-the-spark-cluster-for-tensorspark" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Configure the Spark cluster for Tensorspark</h3>
+
+<p>In the Spark configuratino file, conf/spark-defaults.conf, add the following configuration information</p>
+
+<pre><code>#The directory in HDFS to store the SparkSession temporary files
+spark.hdfs.dir  /data
+#The directory in the local computer to store the SparkSession temporary files
+spark.tmp.dir   /tmp
+</code></pre>
+
+<h3>
+<a id="create-the-corresponding-directory-in-hdfs-configured-in-the-previous-step" class="anchor" href="#create-the-corresponding-directory-in-hdfs-configured-in-the-previous-step" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Create the corresponding directory in HDFS configured in the previous step</h3>
+
+<pre><code>bin/hadoop fs -mkdir /data
+</code></pre>
+
+<h3>
+<a id="prepare-the-mnist-example-data-and-upload-them-to-hdfs" class="anchor" href="#prepare-the-mnist-example-data-and-upload-them-to-hdfs" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Prepare the MNIST example data and upload them to HDFS</h3>
+
+<p>Download the MNIST train data file in this github under: src/MNIST_data/. </p>
+
+<p>Upload them to HDFS:</p>
+
+<pre><code>hadoop fs -put MNIST_data/* /data
+</code></pre>
+
+<h3>
+<a id="run-the-mnist-example" class="anchor" href="#run-the-mnist-example" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Run the MNIST example</h3>
+
+<p>Run Spark pyspark via the shell.</p>
+
+<pre><code>pyspark --deploy-mode=client
+&gt;&gt;&gt;import tensorspark.example.spark_mnist as mnist
+&gt;&gt;&gt;# The 'user' parameter is the user name of HDFS
+&gt;&gt;&gt;mnist.train(sc=sc, user='liangfengsid', name='mnist_try', server_host='localhost', server_port=10080, sync_interval=100, batch_size=100, num_partition=1, num_epoch=2)
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Tensorspark maintained by <a href="https://github.com/liangfengsid">liangfengsid</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
