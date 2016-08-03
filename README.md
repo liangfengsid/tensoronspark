@@ -1,10 +1,10 @@
-# tensorspark
+# TensorOnSpark
 Running Tensorflow on Spark in the scalable, fast and compatible style
 
-Tensorspark facilitates the researchers and programmer to easily write the regular Tensorflow programs and run Tensorflow on the Spark distributed computing paradigm. Tensorspark is innovated by the SparkSession, which  parallelizes the Tensorflow sessions in different executors of Spark. SparkSession maintains a riable central parameter server, which synchronizes the machine learning model parameters periodically with the worker executors. 
+TensorOnSpark facilitates the researchers and programmer to easily write the regular Tensorflow programs and run Tensorflow on the Spark distributed computing paradigm. TensorOnSpark is innovated by the SparkSession, which  parallelizes the Tensorflow sessions in different executors of Spark. SparkSession maintains a riable central parameter server, which synchronizes the machine learning model parameters periodically with the worker executors. 
 
 ##Programming example
-Tensorspark program is very easy to write if one is already familiar with Tensorflow. An complete example of writing the MNIST program can be checked out in src/example/spark_mnist.py.
+TensorOnSpark program is very easy to write if one is already familiar with Tensorflow. An complete example of writing the MNIST program can be checked out in src/example/spark_mnist.py.
 ```
 #initialize the learning model exactly as Tensorflow
 import tensorflow as tf
@@ -39,7 +39,7 @@ http://spark.apache.org
 ###Install TornadoWeb in each computer (Optional if the anaconda python is used). 
 http://www.tornadoweb.org/en/stable/
 
-###Install TensorSpark:
+###Install TensorOnSpark:
 ```
 $ easy_install tensorspark
 ```
@@ -49,7 +49,7 @@ $ python setup.py build
 $ python setup.py install
 ```
   
-###Configure the Spark cluster for Tensorspark
+###Configure the Spark cluster for TensorOnSpark
 In the Spark configuratino file, conf/spark-defaults.conf, add the following configuration information
 ```
 #The directory in HDFS to store the SparkSession temporary files
