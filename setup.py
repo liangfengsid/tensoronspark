@@ -14,7 +14,7 @@ setup(
 	description = ("Tensorflow on Spark, a scalable system for high-performance machine learning"),
 	license = "Apache",
 	keywords = "",
-	url = "https://github.com/liangfengsid/tensorspark/",
+	url = "https://github.com/liangfengsid/tensoronspark/",
 	packages=['tensorspark', 'tensorspark.core', 'tensorspark.example'],
 	package_data={'tensorspark':['MNIST_data/*-ubyte']}, 
 	classifiers=[
