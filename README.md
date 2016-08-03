@@ -1,7 +1,7 @@
 # TensorOnSpark
 Running Tensorflow on Spark in the scalable, fast and compatible style
 
-TensorOnSpark facilitates the researchers and programmer to easily write the regular Tensorflow programs and run Tensorflow on the Spark distributed computing paradigm. TensorOnSpark is innovated by the SparkSession, which  parallelizes the Tensorflow sessions in different executors of Spark. SparkSession maintains a riable central parameter server, which synchronizes the machine learning model parameters periodically with the worker executors. 
+TensorOnSpark facilitates the researchers and programmer to easily write the regular Tensorflow programs and run Tensorflow on the Spark distributed computing paradigm. TensorOnSpark is innovated by the SparkSession, which  parallelizes the Tensorflow sessions in different executors of Spark. SparkSession maintains a reliable central parameter server, which synchronizes the machine learning model parameters periodically with the worker executors. 
 
 ##Programming example
 TensorOnSpark program is very easy to write if one is already familiar with Tensorflow. An complete example of writing the MNIST program can be checked out in src/example/spark_mnist.py.
@@ -64,7 +64,7 @@ bin/hadoop fs -mkdir /data
 ```
 
 ###Prepare the MNIST example data and upload them to HDFS
-Download the MNIST train data file in this github under: src/MNIST_data/. 
+Download the MNIST train data file in this Github under: src/MNIST_data/. 
 
 Upload them to HDFS:
 ```
