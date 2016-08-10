@@ -19,7 +19,6 @@ class SparkSession(object):
 		name: the name of the session
 		server_host: to notify the spark executors the hostname of the parameter server
 		server_port: to notify the spark executors the port of the parameter server
-		weight_combiner: the WeightCombiner object to indicate how the parameter server combiner the parameters. Default to MeanWeightCombiner
 		sync_interval: the interval to synchronize the parameters between the workers and the parameter server
 		batch_size: the batch size of the train input
 		"""
@@ -95,6 +94,8 @@ class SparkSession(object):
 	feed_name_list: the list the feed names that will be used to generate the tensors/operations as the keys of feed_dict
 	param_list: the tensors that need to synchronize with the parameter server
 	feed_dict: the feed_dict for the local run in tf.Session().run(). when @feed_rdd is provided, feed_dict should be None.
+	weight_combiner: the WeightCombiner object to indicate how the parameter server combiner the parameters. Default to MeanWeightCombiner
+	shuffle_within_partition: if True, the workers re-sort the data in the partition between epochs.
 	options: the options for the tf.Session().run()
 	run_metadata: the run_metadata for tf.Session.run()
 	"""
