@@ -7,6 +7,7 @@ import random
 
 import tensorspark.core.spark_session as sps
 import tensorspark.core.partitioner as par
+import tensorspark.core.weight_combiner as comb
 
 def extract_images(sc, filepath, dtype=dtypes.float32, reshape=True):
 	"""Extract the images into a 4D uint8 numpy array [index, y, x, depth]."""
@@ -167,8 +168,9 @@ def train(sc=None, user=None, name='spark_mnist', server_host='localhost', serve
 
 	spark_sess = sps.SparkSession(sc, sess, user=user, name=name, server_host=server_host, server_port=server_port, sync_interval=sync_interval, batch_size=batch_size)
 	partitioner = par.RandomPartitioner(num_partition)
+	combiner = comb.DeltaWeightCombiner()
 	for i in range(num_epoch):
-		spark_sess.run(train_step, feed_rdd=image_label_rdd, feed_name_list=feed_name_list, param_list=param_list)
+		spark_sess.run(train_step, feed_rdd=image_label_rdd, feed_name_list=feed_name_list, param_list=param_list, weight_combiner=combiner, shuffle_within_partition=True)
 		if i != num_epoch-1:
 			temp_image_label_rdd = image_label_rdd.partitionBy(num_partition, partitioner).cache()
 			image_label_rdd.unpersist()
