@@ -3,7 +3,7 @@ class WeightCombiner(object):
 		pass
 
 
-	def compute(self, origin_weight, new_weight, worker_id=-1):
+	def compute(self, origin_weight, new_weight, worker_id=-1, name=None):
 		raise NotImplementedError('method not implemented')
 
 
@@ -17,9 +17,10 @@ class MeanWeightCombiner(WeightCombiner):
 		self._num = num
 
 
-	def compute(self, origin_weight, new_weight, worker_id=-1):
+	def compute(self, origin_weight, new_weight, worker_id=-1, name=None):
 		updated_weight = ((self._num - 1) * origin_weight + new_weight) / self._num
 		return updated_weight
+
 
 
 class UpdateMeanWeightCombiner(WeightCombiner):
@@ -27,7 +28,7 @@ class UpdateMeanWeightCombiner(WeightCombiner):
 		self._server = server
 
 
-	def compute(self, origin_weight, new_weight, worker_id=-1):
+	def compute(self, origin_weight, new_weight, worker_id=-1, name=None):
 		if self._server._version == 0:
 			return new_weight
 		else:
@@ -40,18 +41,23 @@ class DeltaWeightCombiner(WeightCombiner,):
 		self.last_weight = {}
 
 
-	def compute(self, origin_weight, new_weight, worker_id=-1):
+	def compute(self, origin_weight, new_weight, worker_id=-1, name=None):
 		# Param new_weight stands for the delta from the original weight
 		if worker_id == -1:
 			raise ValueError('Not recognized worker in DeltaWeightCombiner')
 		try:
-			weight = self.last_weight[worker_id]
-			delta_weight = new_weight - weight
+			weights = self.last_weight[worker_id]
+			try:
+				weight = weights[name]
+				delta_weight = new_weight - weight
+			except KeyError:
+				delta_weight = new_weight
 		except KeyError:
+			self.last_weight[worker_id] ={}
 			delta_weight = new_weight
 			
 		updated_weight = origin_weight + delta_weight
-		self.last_weight[worker_id] = new_weight
+		self.last_weight[worker_id][name] = updated_weight
 		return updated_weight
 
 

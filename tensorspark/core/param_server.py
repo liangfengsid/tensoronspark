@@ -84,7 +84,7 @@ class ParameterServerHandler(websocket.WebSocketHandler):
 				num_worker = self.server._num_worker
 				worker_value = parameters[name]
 				server_value = server_parameters[name]
-				new_value = self.server._weight_combiner.compute(server_value, worker_value, worker_id=worker_id)
+				new_value = self.server._weight_combiner.compute(server_value, worker_value, worker_id=worker_id, name=name)
 				new_parameters[name] = np.array(new_value)
 			sutil.apply_parameters(self._session, new_parameters)
 			self.server._version += 1
