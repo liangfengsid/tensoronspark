@@ -222,10 +222,9 @@ class SparkSession(object):
 		hdfs.put(host, user, base_dir, meta_local_save_path, port)
 
 		#remove the temporary local file
-		os.remove(local_save_path)
-		os.remove(meta_local_save_path)
-		# os.remove(graph_local_path)
-		# return (hdfs_path, graph_hdfs_path)
+		#Bug to be fixed: the local can be deleted before the file to put into HDFS. 
+		#os.remove(local_save_path)
+		#os.remove(meta_local_save_path)
 		return (hdfs_path, meta_hdfs_path)
 
 
