@@ -34,6 +34,7 @@ class ParameterServer(threading.Thread):
 
 
 	def stop(self):
+		IOLoop.current().stop()
 		if self._http_server is not None:
 			self._http_server.stop()
 			self._http_server = None
