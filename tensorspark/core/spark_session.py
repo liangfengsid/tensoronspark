@@ -40,6 +40,8 @@ class SparkSession(object):
 		self._sync_interval = sync_interval
 		self._batch_size = batch_size
 
+		self.param_server = None
+
 
 	def __enter__(self):
 		for context_manager in self._session._context_managers:
@@ -98,8 +100,10 @@ class SparkSession(object):
 	shuffle_within_partition: if True, the workers re-sort the data in the partition between epochs.
 	options: the options for the tf.Session().run()
 	run_metadata: the run_metadata for tf.Session.run()
+	server_reusable: the boolean value to indicate whether the parameter server can be reused from the last run session, if the param_dict is the unchanged.
+		For example, when the same rdd is trained multiple epochs with data if different orders. 
 	"""
-	def run(self, fetches, feed_rdd=None, feed_name_list=None, param_list = None, feed_dict=None, weight_combiner=None, shuffle_within_partition=False, options=None, run_metadata=None):
+	def run(self, fetches, feed_rdd=None, feed_name_list=None, param_list = None, feed_dict=None, weight_combiner=None, shuffle_within_partition=False, options=None, run_metadata=None, server_reusable=False):
 		if feed_rdd is None:
 			if self._is_session_updated():
 				return self._session.run(fetches, feed_dict, options, run_metadata)
@@ -156,8 +160,15 @@ class SparkSession(object):
 		init and start the parameter server
 		"""
 		num_worker = feed_rdd.getNumPartitions()
-		param_server = ParameterServer(sess=self._session, param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port)
-		param_server.start()
+
+		"""
+		Update: the server can be inherited from the last run, if the param_dict are unchanged.
+		"""
+		if (not server_reusable) or (self.param_server is None):
+			self.param_server = ParameterServer(sess=self._session, param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port, reusable=server_reusable)
+			self.param_server.start()
+		else:
+			self.param_server.update_info(param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port, reusable=server_reusable)
 
 		def _spark_run_fn(splitIndex, partition):
 			worker = SessionWorker(index=splitIndex, param_bc=param_bc)
@@ -169,7 +180,8 @@ class SparkSession(object):
 
 		feed_rdd.mapPartitionsWithIndex(_spark_run_fn).count()
 
-		param_server.stop()
+		if not server_reusable:
+			self.stop_param_server()
 
 
 	# def broadcast_graph(self, sc, session):
@@ -177,7 +189,6 @@ class SparkSession(object):
 	# 		meta_proto = tf.train.export_meta_graph()
 	# 		meta_bc = sc.broadcast(meta_proto)
 	# 	return meta_bc
-
 	def broadcast_session(self, session, user, filename, base_dir=''):
 		import time
 		timestamp = str(int(time.time()*1000))
@@ -222,7 +233,7 @@ class SparkSession(object):
 		hdfs.put(host, user, base_dir, meta_local_save_path, port)
 
 		#remove the temporary local file
-		#Bug to be fixed: the local can be deleted before the file to put into HDFS. 
+		#Bug to be fixed: the local can be deleted before the file to put into HDFS.
 		#os.remove(local_save_path)
 		#os.remove(meta_local_save_path)
 		return (hdfs_path, meta_hdfs_path)
@@ -269,6 +280,12 @@ class SparkSession(object):
 
 	def get_session(self):
 		return self._session
+
+
+	def stop_param_server(self):
+		if self.param_server is not None:
+			self.param_server.stop()
+			self.param_server = None
 
 
 

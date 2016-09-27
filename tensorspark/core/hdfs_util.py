@@ -542,8 +542,31 @@ def get(host, user, hdfs_path, local_dir):
         filename = hdfs_path.split('/')[-1]
         paths = hdfs_path
     
-    cmd = 'hadoop fs -get %s %s/' % (paths, local_dir)
+    if isinstance(filename, list):
+        returned_paths = [local_dir+'/'+name for name in filename]
+    else:
+        returned_paths = local_dir + '/' + filename
+
     import os
+    """
+    Delete the local files of the same name before getting them from HDFS.
+    """
+    if isinstance(returned_paths, list):
+        for file in returned_paths:
+            try:
+                os.remove(file)
+            except OSError as e:
+                if e.errno != errno.ENOENT:
+                    raise
+    else:
+        try:
+            os.remove(returned_paths)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+
+
+    cmd = 'hadoop fs -get %s %s/' % (paths, local_dir)
     os.system(cmd)
 
     if isinstance(filename, list):

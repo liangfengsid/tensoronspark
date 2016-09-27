@@ -20,7 +20,6 @@ class SessionWorker(object):
 		self._ioloop.run_sync(self._init_websock)
 
 
-
 	@gen.coroutine
 	def _init_websock(self):
 		#create the tornado websocket client

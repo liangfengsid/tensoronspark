@@ -10,7 +10,7 @@ import session_util as sutil
 from weight_combiner import MeanWeightCombiner
 
 class ParameterServer(threading.Thread):
-	def __init__(self, sess, param_dict, num_worker, weight_combiner=None, port=10080):
+	def __init__(self, sess, param_dict, num_worker, weight_combiner=None, port=10080, reusable=False):
 		threading.Thread.__init__(self)
 		self._session = sess
 		self._port = port
@@ -21,6 +21,7 @@ class ParameterServer(threading.Thread):
 		self._num_worker = num_worker
 		self._ended_worker = sets.Set()
 		self._http_server = None
+		self._reusable = reusable
 
 		if weight_combiner is None:
 			self._weight_combiner = MeanWeightCombiner(num_worker)
@@ -38,6 +39,21 @@ class ParameterServer(threading.Thread):
 		if self._http_server is not None:
 			self._http_server.stop()
 			self._http_server = None
+
+
+	def update_info(self, param_dict, num_worker, weight_combiner=None, port=10080, reusable=False):
+		self._port = port
+		self._param_dict = param_dict
+		self._version = self._version + 1
+		self._num_worker = num_worker
+		self._ended_worker = sets.Set()
+		self._reusable = reusable
+
+		if weight_combiner is None:
+			self._weight_combiner = MeanWeightCombiner(num_worker)
+		else:
+			self._weight_combiner = weight_combiner
+
 
 
 class ParameterServerHandler(websocket.WebSocketHandler):
@@ -92,10 +108,11 @@ class ParameterServerHandler(websocket.WebSocketHandler):
 			self._lock.release()
 
 		elif op == 'end':
-			self.server._ended_worker.add(worker_id)
-			if len(self.server._ended_worker) == self.server._num_worker:
-				self.server.stop()
-				self.server._ended_worker = sets.Set()
+			if not self.server._reusable:
+				self.server._ended_worker.add(worker_id)
+				if len(self.server._ended_worker) == self.server._num_worker:
+					self.server.stop()
+					self._ended_worker = sets.Set()
 
 
 

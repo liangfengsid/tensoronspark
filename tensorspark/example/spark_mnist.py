@@ -18,7 +18,7 @@ def extract_images(sc, filepath, dtype=dtypes.float32, reshape=True):
 			try:
 				pathData = iterator.next()
 				filename = pathData[0]
-				fileindex = filename.split('-')[2]
+				fileindex = filename.split('-')[-2]
 				data = pathData[1]
 
 				image_meta = struct.unpack('>iiii', buffer(data, 0, 16))
@@ -69,7 +69,7 @@ def extract_labels(sc, filepath, num_class, one_hot=False):
 			try:
 				pathData = iterator.next()
 				filename = pathData[0]
-				fileindex = filename.split('-')[2]
+				fileindex = filename.split('-')[-2]
 				data = pathData[1]
 
 				label_meta = struct.unpack('>ii', buffer(data, 0, 8))
@@ -142,7 +142,7 @@ class RandomPartitioner(object):
 		return random.randint(0, num_partition - 1)
 
 
-def train(sc=None, user=None, name='spark_mnist', server_host='localhost', server_port=10080, sync_interval=100, batch_size=100, num_partition=1, num_epoch=1):
+def train(sc=None, user=None, name='spark_mnist', server_host='localhost', server_port=10080, sync_interval=100, batch_size=100, num_partition=1, num_epoch=1, server_reusable=True):
 	is_new_sc = False
 	if sc is None:
 		sc = pyspark.SparkContext(conf=pyspark.SparkConf())
@@ -170,11 +170,14 @@ def train(sc=None, user=None, name='spark_mnist', server_host='localhost', serve
 	partitioner = par.RandomPartitioner(num_partition)
 	combiner = comb.DeltaWeightCombiner()
 	for i in range(num_epoch):
-		spark_sess.run(train_step, feed_rdd=image_label_rdd, feed_name_list=feed_name_list, param_list=param_list, weight_combiner=combiner, shuffle_within_partition=True)
+		spark_sess.run(train_step, feed_rdd=image_label_rdd, feed_name_list=feed_name_list, param_list=param_list, weight_combiner=combiner, shuffle_within_partition=True, server_reusable=server_reusable)
 		if i != num_epoch-1:
 			temp_image_label_rdd = image_label_rdd.partitionBy(num_partition, partitioner).cache()
 			image_label_rdd.unpersist()
 			image_label_rdd = temp_image_label_rdd
+
+	# Since the parameter server is reusable in this spark_sess.run() example, one should stop the parameter server manually when it is no long used. 
+	spark_sess.stop_param_server()
 
 	if is_new_sc:
 		sc.close()
