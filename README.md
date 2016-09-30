@@ -40,17 +40,19 @@ http://spark.apache.org
 http://www.tornadoweb.org/en/stable/
 
 ###Install TensorOnSpark:
-```
-$ easy_install tensorspark
-```
-or download the source at github, compile and install it via:
+download the source at github, compile and install it via:
 ```
 $ python setup.py build
 $ python setup.py install
 ```
+or install via the python repository, but this method may not install the latest version and may encounter unpredictable bugs. 
+```
+$ easy_install tensorspark
+```
   
 ###Configure the Spark cluster for TensorOnSpark
-In the Spark configuratino file, conf/spark-defaults.conf, add the following configuration information
+
+In the Spark configuration file, conf/spark-defaults.conf, add the following configuration information
 ```
 #The directory in HDFS to store the SparkSession temporary files
 spark.hdfs.dir 	/data
@@ -58,11 +60,21 @@ spark.hdfs.dir 	/data
 spark.tmp.dir 	/tmp
 ```
 
+In the Hadoop configuration file under the Hadoop home directory, etc/hadoop/core-site, add the property for WebHDFS:
+```
+<!-- webhdfs setup -->
+<property>
+  <name>dfs.webhdfs.enabled</name>
+  <value>true</value>
+</property>
+```
+
 ###Create the corresponding directory in HDFS configured in the previous step
 ```
 bin/hadoop fs -mkdir /data
 ```
 
+##Start with an example
 ###Prepare the MNIST example data and upload them to HDFS
 Download the MNIST train data file in this Github under: src/MNIST_data/. 
 
