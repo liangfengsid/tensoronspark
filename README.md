@@ -40,15 +40,16 @@ http://spark.apache.org
 http://www.tornadoweb.org/en/stable/
 
 ###Install TensorOnSpark:
-download the source at github, compile and install it via:
+(1) Download the source from Github, compile and install it via:
 ```
 $ python setup.py build
 $ python setup.py install
 ```
-or install via the python repository, but this method may not install the latest version and may encounter unpredictable bugs. 
+(2) or install via the python repository, but this method may not install the latest version and may encounter unpredictable bugs. 
 ```
 $ easy_install tensorspark
 ```
+(3) For those that want to modify the code to adapt to its new project, they can just download the source code from Github without compiling and installing, and open the python shell under the directory "tensowflow/". 
   
 ###Configure the Spark cluster for TensorOnSpark
 
