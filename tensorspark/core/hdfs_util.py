@@ -562,8 +562,9 @@ def get(host, user, hdfs_path, local_dir):
         try:
             os.remove(returned_paths)
         except OSError as e:
-            if e.errno != errno.ENOENT:
-                raise
+            pass
+            # if e.errno != e.ENOENT:
+                # raise
 
 
     cmd = 'hadoop fs -get %s %s/' % (paths, local_dir)

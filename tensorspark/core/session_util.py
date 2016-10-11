@@ -55,9 +55,20 @@ def restore_session_hdfs(sess, user, hdfs_path, meta_hdfs_path, tmp_local_dir, h
 	filename = hdfs_path.split('/')[-1]
 	meta_filename = meta_hdfs_path.split('/')[-1]
 
-	# (host, port) = self._get_webhdfs_host_port()
 	import hdfs_util as hdfs
 	(local_meta_path, local_path) = hdfs.get(host, user, [meta_hdfs_path, hdfs_path], local_dir)
+	
+	retry_time = 0
+	import time
+	while True:
+		if os.path.exists(local_meta_path):
+			break
+		else:
+			retry_time = retry_time + 1
+			if retry_time > 10:
+				raise OSError("Timeout for downloading file %s from HDFS" % local_meta_path)
+			time.sleep(0.1)
+
 	# sess_graph = hdfs.read(host, user, meta_hdfs_path, port)
 	# meta_file = open(local_path, 'wb')
 	# meta_file.write(sess_graph)
