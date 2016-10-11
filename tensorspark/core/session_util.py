@@ -60,6 +60,7 @@ def restore_session_hdfs(sess, user, hdfs_path, meta_hdfs_path, tmp_local_dir, h
 	
 	retry_time = 0
 	import time
+	import os
 	while True:
 		if os.path.exists(local_meta_path):
 			break
