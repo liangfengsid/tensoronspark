@@ -177,7 +177,8 @@ def train(sc=None, user=None, name='spark_mnist', server_host='localhost', serve
 			image_label_rdd = temp_image_label_rdd
 
 	# Since the parameter server is reusable in this spark_sess.run() example, one should stop the parameter server manually when it is no long used. 
-	spark_sess.stop_param_server()
+	if server_reusable:
+		spark_sess.stop_param_server()
 
 	if is_new_sc:
 		sc.close()
@@ -188,6 +189,6 @@ def train(sc=None, user=None, name='spark_mnist', server_host='localhost', serve
 	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 	print(sess.run(accuracy, feed_dict={x: mnist_data.test.images, y_: mnist_data.test.labels}))
 
-	return sess
+	spark_sess.close()
 
 

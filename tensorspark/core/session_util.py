@@ -48,37 +48,28 @@ def apply_parameters(sess, params):
 
 
 # @staticmethod
-def restore_session_hdfs(sess, user, hdfs_path, meta_hdfs_path, tmp_local_dir, host, port):
+def restore_session_hdfs(sess, user, hdfs_path, meta_hdfs_path, saver_hdfs_path, tmp_local_dir, host, port):
 	#download hdfs file
 	# local_dir = self._get_tmp_dir()
 	local_dir = tmp_local_dir
 	filename = hdfs_path.split('/')[-1]
 	meta_filename = meta_hdfs_path.split('/')[-1]
+	saver_filename = saver_hdfs_path.split('/')[-1]
 
 	import hdfs_util as hdfs
-	(local_meta_path, local_path) = hdfs.get(host, user, [meta_hdfs_path, hdfs_path], local_dir)
+	(local_meta_path, local_path, local_saver_path) = hdfs.get(host, user, [meta_hdfs_path, hdfs_path,saver_hdfs_path], local_dir)
 	
 	retry_time = 0
 	import time
 	import os
 	while True:
-		if os.path.exists(local_meta_path):
+		if os.path.exists(local_meta_path) and os.path.exists(local_path) and os.path.exists(local_saver_path):
 			break
 		else:
 			retry_time = retry_time + 1
-			if retry_time > 10:
-				raise OSError("Timeout for downloading file %s from HDFS" % local_meta_path)
-			time.sleep(0.1)
-
-	# sess_graph = hdfs.read(host, user, meta_hdfs_path, port)
-	# meta_file = open(local_path, 'wb')
-	# meta_file.write(sess_graph)
-	# meta_file.close()
-	
-	# sess_text = hdfs.read(host, user, hdfs_path, port)
-	# with open(local_path, 'wb') as file:
-	# 	file.write(sess_text)
-	# local_path = hdfs.get(host, user, hdfs_path, local_dir)
+			if retry_time > 5:
+				raise OSError("Timeout for downloading file %s or %s or %s from HDFS" % (local_meta_path, local_path, local_saver_path))
+			time.sleep(0.2)
 
 	with sess.graph.as_default():
 		# with gfile.FastGFile(local_meta_path, 'rb') as f:
@@ -96,5 +87,35 @@ def restore_session_hdfs(sess, user, hdfs_path, meta_hdfs_path, tmp_local_dir, h
 		# import os
 		# os.remove(local_path)
 		# os.remove(local_meta_path)
+
+	return (local_meta_path, local_path, local_saver_path)
+
+
+# @staticmethod
+"""
+Try to Restore session from the local meta graph file first. 
+If the local meta graph does not exist, restore from hdfs. 
+"""
+def restore_session_try_local(sess, user, hdfs_path, meta_hdfs_path, saver_hdfs_path, tmp_local_dir, host, port):
+	local_dir = tmp_local_dir
+	filename = hdfs_path.split('/')[-1]
+	meta_filename = meta_hdfs_path.split('/')[-1]
+	saver_filename = saver_hdfs_path.split('/')[-1]
+
+	local_meta_path = local_dir + '/' + meta_filename
+	local_path = local_dir + '/' + filename
+	local_saver_path = local_dir + '/' + saver_filename
+
+	import os
+	if not (os.path.exists(local_meta_path) or os.path.exists(local_path) or os.path.exists(local_saver_path)):
+		return restore_session_hdfs(sess, user, hdfs_path, meta_hdfs_path, saver_hdfs_path, tmp_local_dir, host, port)
+	else:
+		with sess.graph.as_default():
+			saver = tf.train.import_meta_graph(local_meta_path)
+			saver.restore(sess, local_path)
+			return (local_meta_path, local_path, local_saver_path)
+
+
+
 
 	

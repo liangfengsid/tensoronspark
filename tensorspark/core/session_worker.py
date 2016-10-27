@@ -16,7 +16,8 @@ class SessionWorker(object):
 		self._last_version = -1
 
 		self._websock = None
-		self._ioloop = IOLoop.instance()
+		# TODO IOLoop.make_current()?
+		self._ioloop = IOLoop.current()
 		self._ioloop.run_sync(self._init_websock)
 
 
@@ -44,6 +45,7 @@ class SessionWorker(object):
 		version = params['version']
 		session_path = params['session_path']
 		session_meta_path = params['session_meta_path']
+		session_saver_path = params['session_saver_path']
 		fetch_name = params['fetch_name']
 		fetch_type = params['fetch_type']
 		options = params['options']
@@ -59,12 +61,24 @@ class SessionWorker(object):
 		param_server_port = params['param_server_port']
 		sync_interval = params['sync_interval']
 		shuffle_within_partition = params['shuffle_within_partition']
+		server_reusable = params['server_reusable']
+		reusable_flag = params['reusable_flag']
 
+		tf.reset_default_graph()
 		sess =  tf.Session()
 		self._sess = sess
 		with sess.as_default():
 			print ('Worker ' + str(self._id) +' starts running')
-			sutil.restore_session_hdfs(sess, user, session_path, session_meta_path, tmp_local_dir, host, port)
+
+			local_meta_path = ''
+			local_path = ''
+			if server_reusable and reusable_flag:
+				#Try to Restore session from the local meta graph file
+				(local_meta_path, local_path, local_saver_path) = sutil.restore_session_try_local(sess, user, session_path, session_meta_path, session_saver_path, tmp_local_dir, host, port)
+			else:
+				#Restore session from the meta graph file in hdfs. 
+				(local_meta_path, local_path, local_saver_path) = sutil.restore_session_hdfs(sess, user, session_path, session_meta_path, session_saver_path, tmp_local_dir, host, port)
+
 			fetches = None
 			if isinstance(fetch_name, list):
 				fetches = [sutil.extract_fetch(sess, fetch_name[i], fetch_type[i]) for i in range(len(fetch_name))]
@@ -132,9 +146,17 @@ class SessionWorker(object):
 				param_meta = {'worker_id':self._id, 'worker_op':'push', 'param_version':self._last_version, 'parameters':local_parameters}
 				self.push_parameters(param_meta)
 
+			#Save the session to local files if the server is reusable. 
+			if server_reusable:
+				variables = local_parameters = {name:sutil.extract_fetch(sess, name) for name in param_name_list}
+				try:
+					self._save_session_local(sess, variables, local_saver_path, local_path)
+				except TypeError as e:
+					self._delete_saved_graph(local_saver_path, local_path)
+					print('The session is not saved locally, the local graph file is outdated and is deleted')
+
 			self.notify_end()
 			print ('Worker ' + str(self._id) +' stops running')
-
 
 
 	@staticmethod
@@ -193,6 +215,61 @@ class SessionWorker(object):
 			self._websock.write_message(json.dumps(end_msg))
 
 		self._ioloop.run_sync(_notify_end_sync)
+
+
+	"""
+	@Param:
+	timeout: Because of the tensorflow name assertion to the saver, it needs several times to get the saver, within timeout. 
+	"""
+	def _save_session_local(self, sess, variables, local_saver_path, local_path, timeout=5):
+
+		with sess.as_default():
+			# Build the Saver() from the previous saved one
+			if local_saver_path is not None or local_saver_path != '':
+				from tensorflow.core.protobuf import saver_pb2
+				saver_def = saver_pb2.SaverDef()
+				saver_file = open(local_saver_path, 'rb')
+				saver_def.ParseFromString(saver_file.read())
+				saver_file.close()
+				saver = tf.train.Saver(saver_def = saver_def)
+				save_path = saver.save(sess, local_path)
+				return save_path
+			else:
+				# Initialize a new Saver
+				retry = timeout
+				while retry > 0:
+					try:
+						saver = tf.train.Saver()
+						break
+					except AssertionError as e:
+						print('Retry creating Saver() due to the unnecessary assertion in Tensorflow r10 and earlier.')
+						retry =  retry - 1
+
+				if retry == 0:
+					raise TypeError('Saver cannnot be created due to the unnecessary assertion in Tensorflow r10 and earlier. Retry or update Tensorflow to the latest to fix.')
+				# saver = tf.train.Saver(variables)
+				save_path = saver.save(sess, local_path)
+				return save_path
+
+
+	def _delete_saved_graph(self, saver_path, path):
+		meta_path = path + ".meta"
+		import os
+		try:
+			os.remove(saver_path)
+		except OSError as e:
+			print('File %s does not exist, deleting the local saver file succeeds.' % saver_path)
+		
+		try:
+			os.remove(path)
+		except OSError as e:
+			print('File %s does not exist, deleting the local graph file succeeds.' % path)
+		
+		try:
+			os.remove(meta_path)
+		except OSError as e:
+			print('File %s does not exist, deleting the local meta graph file succeeds' % meta_path)
+
 
 
 		

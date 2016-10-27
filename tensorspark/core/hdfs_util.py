@@ -556,8 +556,9 @@ def get(host, user, hdfs_path, local_dir):
             try:
                 os.remove(file)
             except OSError as e:
-                if e.errno != errno.ENOENT:
-                    raise
+                pass
+                # if e.errno != e.ENOENT:
+                #     raise
     else:
         try:
             os.remove(returned_paths)

@@ -9,9 +9,9 @@ import sets
 import session_util as sutil
 from weight_combiner import MeanWeightCombiner
 
-class ParameterServer(threading.Thread):
+class ParameterServer(object):
 	def __init__(self, sess, param_dict, num_worker, weight_combiner=None, port=10080, reusable=False):
-		threading.Thread.__init__(self)
+		# threading.Thread.__init__(self)
 		self._session = sess
 		self._port = port
 		self._param_dict = param_dict
@@ -29,13 +29,48 @@ class ParameterServer(threading.Thread):
 			self._weight_combiner = weight_combiner
 
 
-	def run(self):
+	def start(self):
 		self._http_server = self._application.listen(self._port)
-		IOLoop.current().start()
+
+		class IOLoopThread(threading.Thread):
+			def __init__(self):
+				threading.Thread.__init__(self)
+
+			
+			def run(self):
+				try:
+					IOLoop.current().start()
+				except Exception as e:
+					print(e)
+					print('INFO: Exception in starting IOLoop in ParameterServer, the server continue to execute normally.')
+
+		thread = IOLoopThread()
+		thread.start()
 
 
+	# def run(self):
+	# 	self._http_server = self._application.listen(self._port)
+	# 	try:
+	# 		IOLoop.current().start()
+	# 	except Exception as e:
+	# 		print(e)
+	# 		self.stop()
+
+
+	"""
+	Stop both the IOLoop and the application server
+	"""
 	def stop(self):
 		IOLoop.current().stop()
+		if self._http_server is not None:
+			self._http_server.stop()
+			self._http_server = None
+
+
+	"""
+	Stop the application server only, but not the ioloop
+	"""
+	def stop_server(self):
 		if self._http_server is not None:
 			self._http_server.stop()
 			self._http_server = None

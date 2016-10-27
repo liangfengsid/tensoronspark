@@ -32,6 +32,7 @@ class SparkSession(object):
 		self._version = 0
 		self._session_path = ''
 		self._session_meta_path = ''
+		self._session_saver_path = ''
 		self._fetch_name = None
 		self._fetch_type = None
 		#TODO
@@ -39,6 +40,8 @@ class SparkSession(object):
 		self._param_server_port = server_port
 		self._sync_interval = sync_interval
 		self._batch_size = batch_size
+		#Flag to indicate whether the reusable server has start for the first time or not
+		self._reusable_flag = False
 
 		self.param_server = None
 
@@ -79,7 +82,6 @@ class SparkSession(object):
 
 	@staticmethod
 	def reset(target, containers=None, config=None):
-
 		if target is not None:
 			target = compat.as_bytes(target)
 		if containers is not None:
@@ -112,7 +114,11 @@ class SparkSession(object):
 		assert(param_list is not None)
 
 		#save the session to hdfs
-		(self._session_path, self._session_meta_path) = self.broadcast_session(self._session, self._user, self._name)
+		if server_reusable and self._reusable_flag and self._session_path != '' and self._session_meta_path != '' and self._session_saver_path != '':
+			pass
+		else:
+			self._reusable_flag = False
+			(self._session_path, self._session_meta_path, self._session_saver_path) = self.broadcast_session(self._session, self._user, self._name)
 		tmp_local_dir = self._get_tmp_dir()
 		(host, port) = self._get_webhdfs_host_port()
 		# graph_bc = self.broadcast_graph(self._sc, self._session)
@@ -137,6 +143,7 @@ class SparkSession(object):
 			'version': self._version,
 			'session_path': self._session_path,
 			'session_meta_path': self._session_meta_path,
+			'session_saver_path': self._session_saver_path,
 			'fetch_name': self._fetch_name,
 			'fetch_type': self._fetch_type, 
 			'options': options,
@@ -152,6 +159,8 @@ class SparkSession(object):
 			'param_server_port': self._param_server_port,
 			'sync_interval': self._sync_interval,
 			'shuffle_within_partition': shuffle_within_partition,
+			'server_reusable': server_reusable,
+			'reusable_flag': self._reusable_flag,
 		}
 		param_bc = self._sc.broadcast(param_dict)
 
@@ -164,23 +173,35 @@ class SparkSession(object):
 		"""
 		Update: the server can be inherited from the last run, if the param_dict are unchanged.
 		"""
-		if (not server_reusable) or (self.param_server is None):
-			self.param_server = ParameterServer(sess=self._session, param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port, reusable=server_reusable)
-			self.param_server.start()
+		try:
+			if (not server_reusable) or (self.param_server is None):
+				self.param_server = ParameterServer(sess=self._session, param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port, reusable=server_reusable)
+				self.param_server.start()
+			else:
+				self.param_server.update_info(param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port, reusable=server_reusable)
+
+			def _spark_run_fn(splitIndex, partition):
+				worker = SessionWorker(index=splitIndex, param_bc=param_bc)
+				# params = param_bc.value
+				# _run_fn(splitIndex, partition, params)
+				worker.run(splitIndex=splitIndex, partition=partition)
+				worker.close()
+				return [1]
+
+			feed_rdd.mapPartitionsWithIndex(_spark_run_fn).count()
+		except Exception as e:
+			if type(e) == RuntimeError:
+				print(e)
+				print('Catch RuntimeError, but is ignored in the SparkSession.run(). To stop the ParameterServer if it is not reusable')
+			else:
+				print(e)
+				self._reusable_flag = False
+				self.stop_param_server()
+				return
+
+		if server_reusable:
+			self._reusable_flag = True
 		else:
-			self.param_server.update_info(param_dict=param_dict, num_worker=num_worker, weight_combiner=weight_combiner, port=self._param_server_port, reusable=server_reusable)
-
-		def _spark_run_fn(splitIndex, partition):
-			worker = SessionWorker(index=splitIndex, param_bc=param_bc)
-			# params = param_bc.value
-			# _run_fn(splitIndex, partition, params)
-			worker.run(splitIndex=splitIndex, partition=partition)
-			worker.close()
-			return [1]
-
-		feed_rdd.mapPartitionsWithIndex(_spark_run_fn).count()
-
-		if not server_reusable:
 			self.stop_param_server()
 
 
@@ -196,9 +217,9 @@ class SparkSession(object):
 		spark_hdfsdir = self._sc._conf.get('spark.hdfs.dir')
 		if spark_hdfsdir is None:
 			spark_hdfsdir = '/'
-		(save_path, meta_save_path) = self.save_session_hdfs(self._session, user, filename, spark_hdfsdir)
+		(save_path, meta_save_path, saver_path) = self.save_session_hdfs(self._session, user, filename, spark_hdfsdir)
 		#TODO return the session RDD
-		return (save_path, meta_save_path)
+		return (save_path, meta_save_path, saver_path)
 
 
 	def save_session_hdfs(self, session, user, filename, base_dir=''):
@@ -223,28 +244,54 @@ class SparkSession(object):
 		(host, port) = self._get_webhdfs_host_port()
 		# hdfs.put(host, user, base_dir, graph_local_path, port)
 
-		local_save_path = self._save_session_local(session, filename, local_dir=local_dir)
+		(local_save_path, saver_path) = self._save_session_local(session, filename, local_dir=local_dir)
 		meta_local_save_path = local_save_path+'.meta'
 		#TODO
 		hdfs_path = base_dir + '/' + filename
 		meta_hdfs_path = hdfs_path+'.meta'
+		saver_hdfs_path = hdfs_path + '.saver.proto'
 
 		hdfs.put(host, user, base_dir, local_save_path, port)
 		hdfs.put(host, user, base_dir, meta_local_save_path, port)
+		hdfs.put(host, user, base_dir, saver_path, port)
 
 		#remove the temporary local file
 		#Bug to be fixed: the local can be deleted before the file to put into HDFS.
 		#os.remove(local_save_path)
 		#os.remove(meta_local_save_path)
-		return (hdfs_path, meta_hdfs_path)
+		return (hdfs_path, meta_hdfs_path, saver_hdfs_path)
 
 
-	def _save_session_local(self, sess, filename, local_dir=''):
+	"""
+	@Param:
+	timeout: Because of the tensorflow name assertion to the saver, it needs several times to get the saver, within timeout. 
+	"""
+	def _save_session_local(self, sess, filename, local_dir='', timeout=5):
 		file_path = local_dir + '/' + filename
+		saver_path = file_path + '.saver.proto'
 		with sess.as_default():
-			saver = tf.train.Saver()
-			save_path = saver.save(sess, file_path)
-			return save_path
+			retry = timeout
+			while retry > 0:
+				try:
+					saver = tf.train.Saver()
+					break
+				except AssertionError as e:
+					print('Retry creating Saver() due to the unnecessary assertion in Tensorflow r10 and earlier.')
+					retry =  retry - 1
+
+			if retry == 0:
+				raise TypeError('Saver cannnot be created due to the unnecessary assertion in Tensorflow r10 and earlier. Retry or update Tensorflow to the latest to fix.')
+	
+			path = saver.save(sess, file_path)
+			"""
+			Persist the Saver() object for later restoring
+			"""
+			saver_def = saver.as_saver_def()
+			saver_file = open(saver_path, 'wb')
+			saver_file.write(saver_def.SerializeToString())
+			saver_file.close()
+			return (path, saver_path)
+
 
 	#TODO
 	def _get_tmp_dir(self):
@@ -284,8 +331,15 @@ class SparkSession(object):
 
 	def stop_param_server(self):
 		if self.param_server is not None:
-			self.param_server.stop()
+			# self.param_server.stop()
+			self.param_server.stop_server()
 			self.param_server = None
+
+
+	def close(self):
+		from tornado.ioloop import IOLoop
+		IOLoop.current().stop()
+		self._session.close()
 
 
 
