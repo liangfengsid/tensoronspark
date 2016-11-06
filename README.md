@@ -33,8 +33,10 @@ spark_sess.run(train_step, feed_rdd=image_label_rdd, feed_name_list=feed_name_li
 ###Install Tensorflow in each computer
 https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html
 
-###Setup the Hadoop and Spark cluster 
-http://spark.apache.org
+### Setup the Hadoop and Spark cluster 
+Hadoop: http://hadoop.apache.org
+
+Spark: http://spark.apache.org
   
 ###Install TornadoWeb in each computer (Optional if the anaconda python is used). 
 http://www.tornadoweb.org/en/stable/
